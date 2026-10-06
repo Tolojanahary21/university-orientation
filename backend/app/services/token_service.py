@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import jwt
@@ -14,14 +14,12 @@ def create_access_token(
     user_id: UUID,
 ) -> str:
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     payload = {
         "sub": str(user_id),
         "iat": now,
-        "exp": now + timedelta(
-            minutes=JWT_ACCESS_TOKEN_MINUTES
-        ),
+        "exp": now + timedelta(minutes=JWT_ACCESS_TOKEN_MINUTES),
     }
 
     return jwt.encode(

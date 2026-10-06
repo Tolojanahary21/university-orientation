@@ -17,9 +17,7 @@ def get_user_by_email(
     for_update: bool = False,
 ) -> User | None:
 
-    statement = select(User).where(
-        User.email == normalize_email(email)
-    )
+    statement = select(User).where(User.email == normalize_email(email))
 
     if for_update:
         statement = statement.with_for_update()
@@ -33,3 +31,9 @@ def get_user_by_id(
 ) -> User | None:
 
     return db.get(User, user_id)
+
+
+def count_users(db: Session) -> int:
+    from sqlalchemy import func
+
+    return db.scalar(select(func.count(User.id))) or 0

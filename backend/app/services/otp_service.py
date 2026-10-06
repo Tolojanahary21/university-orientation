@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.core.config import (
     OTP_MAX_ATTEMPTS,
@@ -34,7 +34,7 @@ class OTPCooldownError(OTPError):
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def generate_otp() -> str:
@@ -45,9 +45,7 @@ def build_otp_hash(
     user: User,
     otp: str,
 ) -> str:
-    payload = (
-        f"email_verification:{user.id}:{otp}"
-    ).encode()
+    payload = (f"email_verification:{user.id}:{otp}").encode()
 
     return hmac.new(
         OTP_SECRET_KEY.encode(),
@@ -63,18 +61,12 @@ def create_email_verification_otp(
     now = utc_now()
 
     if user.otp_last_sent_at is not None:
-        elapsed = (
-            now - user.otp_last_sent_at
-        ).total_seconds()
+        elapsed = (now - user.otp_last_sent_at).total_seconds()
 
         if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
-            remaining = int(
-                OTP_RESEND_COOLDOWN_SECONDS - elapsed
-            )
+            remaining = int(OTP_RESEND_COOLDOWN_SECONDS - elapsed)
 
-            raise OTPCooldownError(
-                max(1, remaining)
-            )
+            raise OTPCooldownError(max(1, remaining))
 
     otp = generate_otp()
 
@@ -83,11 +75,7 @@ def create_email_verification_otp(
         otp,
     )
 
-    user.otp_expires_at = (
-        now + timedelta(
-            minutes=OTP_TTL_MINUTES
-        )
-    )
+    user.otp_expires_at = now + timedelta(minutes=OTP_TTL_MINUTES)
 
     user.otp_attempts = 0
     user.otp_last_sent_at = now
@@ -105,10 +93,7 @@ def verify_email_otp(
 
     now = utc_now()
 
-    if (
-        user.otp_hash is None
-        or user.otp_expires_at is None
-    ):
+    if user.otp_hash is None or user.otp_expires_at is None:
         raise OTPInvalidError()
 
     if now > user.otp_expires_at:

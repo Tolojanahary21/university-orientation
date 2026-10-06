@@ -4,12 +4,13 @@ from fastapi import (
     HTTPException,
     status,
 )
-from app.api.dependencies import (
-    get_current_user,
-)
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_db
+from app.api.dependencies import (
+    get_current_user,
+    get_db,
+)
+from app.core.audit_events import AuditEventType
 from app.repositories.user_repository import (
     get_user_by_email,
 )
@@ -22,6 +23,7 @@ from app.schemas.auth import (
     VerifyEmailRequest,
 )
 from app.schemas.user import UserResponse
+from app.services.audit_event_service import record_audit_event
 from app.services.auth_service import (
     AccountDisabledError,
     EmailAlreadyExistsError,
@@ -46,7 +48,6 @@ from app.services.otp_service import (
 from app.services.token_service import (
     create_access_token,
 )
-
 
 router = APIRouter(
     prefix="/auth",
@@ -107,14 +108,30 @@ def verify_email(
         )
 
     try:
+        was_verified = user.email_verified_at is not None
         verify_email_otp(
             user,
             data.otp,
         )
-
+        if not was_verified:
+            record_audit_event(
+                db,
+                event_type=AuditEventType.EMAIL_VERIFIED,
+                entity_type="user",
+                entity_id=user.id,
+                action="verify_email",
+            )
         db.commit()
 
     except OTPExpiredError:
+        record_audit_event(
+            db,
+            event_type=AuditEventType.EMAIL_VERIFICATION_FAILED,
+            entity_type="user",
+            entity_id=user.id,
+            action="verify_email",
+            metadata={"reason": "expired"},
+        )
         db.commit()
 
         raise HTTPException(
@@ -123,6 +140,14 @@ def verify_email(
         )
 
     except OTPInvalidError:
+        record_audit_event(
+            db,
+            event_type=AuditEventType.EMAIL_VERIFICATION_FAILED,
+            entity_type="user",
+            entity_id=user.id,
+            action="verify_email",
+            metadata={"reason": "invalid"},
+        )
         db.commit()
 
         raise HTTPException(
@@ -131,19 +156,22 @@ def verify_email(
         )
 
     except OTPBlockedError:
+        record_audit_event(
+            db,
+            event_type=AuditEventType.EMAIL_VERIFICATION_FAILED,
+            entity_type="user",
+            entity_id=user.id,
+            action="verify_email",
+            metadata={"reason": "blocked"},
+        )
         db.commit()
 
         raise HTTPException(
             status_code=429,
-            detail=(
-                "Trop de tentatives. "
-                "Demandez un nouveau code."
-            ),
+            detail=("Trop de tentatives. Demandez un nouveau code."),
         )
 
-    return {
-        "message": "Adresse e-mail vérifiée."
-    }
+    return {"message": "Adresse e-mail vérifiée."}
 
 
 @router.post(
@@ -162,26 +190,23 @@ def resend_otp(
 
     # réponse volontairement générique
     if user is None:
-        return {
-            "message": (
-                "Si ce compte existe, "
-                "un code sera envoyé."
-            )
-        }
+        return {"message": ("Si ce compte existe, un code sera envoyé.")}
 
     if user.email_verified_at is not None:
         return {
-            "message": (
-                "Si ce compte nécessite une "
-                "vérification, un code sera envoyé."
-            )
+            "message": ("Si ce compte nécessite une vérification, un code sera envoyé.")
         }
 
     try:
-        otp = create_email_verification_otp(
-            user
-        )
+        otp = create_email_verification_otp(user)
 
+        record_audit_event(
+            db,
+            event_type=AuditEventType.EMAIL_VERIFICATION_SENT,
+            entity_type="user",
+            entity_id=user.id,
+            action="resend_otp",
+        )
         db.commit()
 
         send_verification_email(
@@ -201,17 +226,20 @@ def resend_otp(
         )
 
     except EmailDeliveryError:
+        record_audit_event(
+            db,
+            event_type=AuditEventType.EMAIL_VERIFICATION_SEND_FAILED,
+            entity_type="user",
+            entity_id=user.id,
+            action="resend_otp",
+        )
+        db.commit()
         raise HTTPException(
             status_code=503,
             detail="Impossible d'envoyer l'e-mail.",
         )
 
-    return {
-        "message": (
-            "Si ce compte existe, "
-            "un code sera envoyé."
-        )
-    }
+    return {"message": ("Si ce compte existe, un code sera envoyé.")}
 
 
 @router.post(
@@ -247,21 +275,19 @@ def login(
             detail="Compte désactivé.",
         )
 
-    token = create_access_token(
-        user.id
-    )
+    token = create_access_token(user.id)
 
     return {
         "access_token": token,
         "token_type": "bearer",
     }
+
+
 @router.get(
     "/me",
     response_model=UserResponse,
 )
 def me(
-    current_user=Depends(
-        get_current_user
-    ),
+    current_user=Depends(get_current_user),
 ):
     return current_user

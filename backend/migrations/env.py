@@ -3,12 +3,10 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-from app.core.config import DATABASE_URL
-from app.db.session import Base
-
 # Important : charge tous les modèles
 import app.models  # noqa: F401
-
+from app.core.config import DATABASE_URL
+from app.db.session import Base
 
 config = context.config
 
