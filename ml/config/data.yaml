@@ -1,0 +1,6 @@
+schema_version: "1.0"
+feature_schema_version: "1.0"
+score_min: 0
+score_max: 20
+minimum_subjects: 3
+target_column: target_field_code

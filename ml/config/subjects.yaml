@@ -1,0 +1,15 @@
+mathematics: {aliases: [mathématiques, mathematiques, mathématique, maths, math, mathématiques générales, mathematiques generales]}
+physics: {aliases: [physique, physics]}
+chemistry: {aliases: [chimie, chemistry]}
+physics_chemistry: {aliases: [physique chimie, physique-chimie, physique et chimie, sciences physiques]}
+biology: {aliases: [biologie, bio, svt, sciences de la vie et de la terre, sciences naturelles]}
+french: {aliases: [français, francais, french, français ue, francais ue]}
+english: {aliases: [anglais, english, anglais facultative, anglais optionnel]}
+malagasy: {aliases: [malagasy, malgache]}
+history: {aliases: [histoire, history]}
+geography: {aliases: [géographie, geographie, geography]}
+history_geography: {aliases: [histoire géographie, histoire-geographie, histoire et géographie]}
+physical_education: {aliases: [eps, éducation physique et sportive, education physique et sportive, education physique que et sportive, sport]}
+philosophy: {aliases: [philosophie, philo, philosophy]}
+economics: {aliases: [économie, economie, sciences économiques, economics]}
+computer_science: {aliases: [informatique, computer science, computer_science]}
